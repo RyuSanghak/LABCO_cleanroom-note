@@ -12,7 +12,6 @@ export async function getStaticPaths() {
 
 const { post } = Astro.props;
 const { Content } = await render(post);
-const date = (d: Date) => d.toISOString().slice(0, 10);
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Article',
@@ -30,13 +29,9 @@ const jsonLd = {
 <Base title={post.data.title} description={post.data.description} type="article" jsonLd={jsonLd}>
   <article class="article">
     <h1>{post.data.title}</h1>
-    <div class="article-meta">
-      게시 {date(post.data.pubDate)}
-      {post.data.updatedDate && <> · 수정 {date(post.data.updatedDate)}</>}
-      {post.data.tags.length > 0 && (
-        <div class="tags" style="margin-top:6px">{post.data.tags.map((t) => <span class="tag">{t}</span>)}</div>
-      )}
-    </div>
+    {post.data.tags.length > 0 && (
+      <div class="article-meta"><div class="tags">{post.data.tags.map((t) => <span class="tag">{t}</span>)}</div></div>
+    )}
     <AdSlot slot="article-top" />
     <Content />
     <AdSlot slot="article-bottom" />

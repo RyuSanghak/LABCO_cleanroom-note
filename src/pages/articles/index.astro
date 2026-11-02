@@ -5,7 +5,6 @@ import { getCollection } from 'astro:content';
 
 const posts = (await getCollection('articles', ({ data }) => !data.draft))
   .sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
-const date = (d: Date) => d.toISOString().slice(0, 10);
 ---
 
 <Base title="지식" description="파티클 카운터 원리, ISO 14644-1 클린룸 등급, 샘플링 절차, GMP 환경 모니터링, 미세먼지 수치 해석. 입자 측정 실무 지식 모음.">
@@ -14,7 +13,6 @@ const date = (d: Date) => d.toISOString().slice(0, 10);
     {posts.map((p) => (
       <li>
         <a href={`/articles/${p.id}/`}>{p.data.short ?? p.data.title}</a>
-        <span class="small muted" style="margin-left:10px">{date(p.data.updatedDate ?? p.data.pubDate)}</span>
       </li>
     ))}
   </ul>
