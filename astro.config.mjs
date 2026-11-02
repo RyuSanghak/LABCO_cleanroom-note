@@ -4,7 +4,7 @@ import sitemap from '@astrojs/sitemap';
 import remarkGfm from 'remark-gfm';
 
 // 배포 주소. Cloudflare Pages 환경 변수 SITE_URL 로 덮어쓸 수 있다.
-const site = process.env.SITE_URL ?? 'https://labco-cleanroom-note.pages.dev';
+const site = process.env.SITE_URL ?? 'https://cleanroomnote.com';
 
 export default defineConfig({
   site,

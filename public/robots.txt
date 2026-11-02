@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://labco-cleanroom-note.pages.dev/sitemap-index.xml
+Sitemap: https://cleanroomnote.com/sitemap-index.xml
