@@ -1,0 +1,178 @@
+---
+import Base from '../layouts/Base.astro';
+import AdSlot from '../components/AdSlot.astro';
+
+const title = '전국 미세먼지 지도';
+const description =
+  '에어코리아 전국 공식 측정소와 랩코(LABCO) 측정망의 실시간 PM10·PM2.5 농도를 한 지도에서 확인합니다. 시도별 보기, 측정소 검색, 등급별 요약.';
+// 데이터 파일 주소. 배포에서는 GitHub Actions 가 매시간 갱신하는 data 브랜치 주소를 환경 변수로 넣는다.
+const dataUrl = (import.meta.env.PUBLIC_AIRKOREA_DATA_URL as string | undefined) || '/data/airkorea.json';
+---
+
+<Base title={title} description={description}>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" crossorigin="" />
+
+  <div class="map-head">
+    <div>
+      <h1>{title}</h1>
+      <p class="muted small" id="status">불러오는 중…</p>
+    </div>
+    <div class="seg" role="tablist" aria-label="지표">
+      <button type="button" data-metric="pm25" aria-selected="true">PM2.5</button>
+      <button type="button" data-metric="pm10">PM10</button>
+    </div>
+  </div>
+
+  <div class="map-bar">
+    <select id="sido" aria-label="시도 선택"><option value="">전국</option></select>
+    <input id="q" list="names" type="search" placeholder="측정소·동네 검색" aria-label="측정소 검색" />
+    <datalist id="names"></datalist>
+    <button type="button" class="secondary" id="locate">내 위치</button>
+  </div>
+
+  <div id="summary" class="summary" aria-live="polite"></div>
+  <div id="map" role="application" aria-label="미세먼지 지도"></div>
+
+  <div class="legend" id="legend"></div>
+  <p class="small muted">
+    ● 공식 측정소: <a href="https://www.airkorea.or.kr" rel="noopener" target="_blank">한국환경공단 에어코리아</a> (공공누리 제3유형, 1시간 평균) ·
+    ■ 랩코 측정망: <a href="/labco/">랩코(LABCO)</a> 자체 장비 실시간값 · 지도: © OpenStreetMap contributors
+  </p>
+
+  <AdSlot slot="map-bottom" />
+
+  <script is:inline src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" crossorigin=""></script>
+  <script define:vars={{ DATA_URL: dataUrl }}>
+    const GRADES = { 1: ['좋음', '#2e86de'], 2: ['보통', '#27ae60'], 3: ['나쁨', '#f39c12'], 4: ['매우 나쁨', '#e74c3c'] };
+    const RANGES = { pm25: ['0~15', '16~35', '36~75', '76~'], pm10: ['0~30', '31~80', '81~150', '151~'] };
+    const NONE = '#9aa3b0';
+    let metric = 'pm25';
+    let data = null;
+
+    // 한국만 보여주므로 한반도 전체가 보이는 정도까지만 축소되고, 그 밖으로는 못 나가게 한다.
+    const KOREA = [[33.0, 125.4], [38.7, 130.2]];
+    const map = L.map('map', { zoomControl: true, minZoom: 6, zoomSnap: 0.5, maxBounds: [[31.5, 122.5], [40.5, 133.5]], maxBoundsViscosity: 1 });
+    // 처음에는 제주부터 강원 북부까지 전국이 한 화면에 들어오게. 레이아웃이 잡힌 뒤 다시 맞춘다.
+    const showAll = () => { map.invalidateSize(); map.fitBounds(KOREA, { padding: [8, 8] }); };
+    showAll();
+    window.addEventListener('load', showAll);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
+    const airLayer = L.layerGroup().addTo(map);
+    const labcoLayer = L.layerGroup().addTo(map);
+
+    // 랩코 측정망용 네모 마커: CircleMarker 를 상속해 같은 반지름·애니메이션 규칙으로 네모를 그린다.
+    const SquareMarker = L.CircleMarker.extend({
+      _updatePath() { const p = this._point, r = this._radius; this._renderer._setPath(this, `M${p.x - r} ${p.y - r}h${2 * r}v${2 * r}h${-2 * r}z`); },
+    });
+    const gradeOf = (r) => (metric === 'pm25' ? r.g25 : r.g10);
+    const valueOf = (r) => (metric === 'pm25' ? r.pm25 : r.pm10);
+    const colorOf = (r) => GRADES[gradeOf(r)]?.[1] ?? NONE;
+    const label = (r) => (valueOf(r) == null ? '-' : String(valueOf(r)));
+    const kst = (iso) => { const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }); };
+
+    function popup(r, kind) {
+      const g = (v, fn) => (v == null ? '<span class="muted">-</span>' : `<b>${v}</b> <span style="color:${GRADES[fn]?.[1] ?? NONE}">${GRADES[fn]?.[0] ?? ''}</span>`);
+      return `<div class="pp"><b>${r.n}</b> <span class="muted small">${r.s}${r.m ? ' · ' + r.m : ''}</span><br>
+        <span class="muted small">${kind === 'labco' ? '랩코 측정망' : '공식 측정소'} · ${kind === 'labco' ? kst(r.t) : r.t ?? ''}</span>
+        <table><tr><td>PM2.5</td><td>${g(r.pm25, r.g25)} µg/m³</td></tr><tr><td>PM10</td><td>${g(r.pm10, r.g10)} µg/m³</td></tr>
+        ${r.khai != null ? `<tr><td>통합지수</td><td>${g(r.khai, r.gk)}</td></tr>` : ''}</table></div>`;
+    }
+
+    function draw() {
+      airLayer.clearLayers(); labcoLayer.clearLayers();
+      if (!data) return;
+      const sido = document.getElementById('sido').value;
+      const z = map.getZoom();
+      const showLabel = z >= 11;
+      const small = z <= 7; // 전국 보기에서는 작게 그려 겹침을 줄인다
+      const filt = (rows) => rows.filter((r) => !sido || r.s === sido);
+      for (const r of filt(data.airkorea)) {
+        const m = L.circleMarker([r.lat, r.lng], { radius: small ? 5 : 8, color: '#fff', weight: small ? 1 : 1.5, fillColor: colorOf(r), fillOpacity: 0.95 });
+        m.bindPopup(popup(r, 'air'));
+        if (showLabel) m.bindTooltip(label(r), { permanent: true, direction: 'top', offset: [0, -6], className: 'val' });
+        airLayer.addLayer(m);
+      }
+      for (const r of filt(data.labco)) {
+        const m = new SquareMarker([r.lat, r.lng], { radius: small ? 5 : 8, color: '#fff', weight: small ? 1 : 1.5, fillColor: colorOf(r), fillOpacity: 0.95 });
+        m.bindPopup(popup(r, 'labco'));
+        if (showLabel) m.bindTooltip(label(r), { permanent: true, direction: 'top', offset: [0, -6], className: 'val' });
+        labcoLayer.addLayer(m);
+      }
+      // 요약: 선택 영역의 등급 분포
+      const all = [...filt(data.airkorea), ...filt(data.labco)];
+      const cnt = { 1: 0, 2: 0, 3: 0, 4: 0 };
+      for (const r of all) if (gradeOf(r)) cnt[gradeOf(r)]++;
+      document.getElementById('summary').innerHTML = [1, 2, 3, 4]
+        .map((k) => `<span class="chip"><i style="background:${GRADES[k][1]}"></i>${GRADES[k][0]} <b>${cnt[k]}</b></span>`).join('') +
+        `<span class="chip muted">${sido || '전국'} ${all.length}곳</span>`;
+      document.getElementById('legend').innerHTML = [1, 2, 3, 4]
+        .map((k) => `<span class="legend-item"><i style="background:${GRADES[k][1]}"></i>${GRADES[k][0]} ${RANGES[metric][k - 1]}</span>`).join('') +
+        `<span class="legend-item muted">단위 µg/m³</span>`;
+    }
+
+    function fitSido() {
+      const sido = document.getElementById('sido').value;
+      const pts = [...data.airkorea, ...data.labco].filter((r) => !sido || r.s === sido).map((r) => [r.lat, r.lng]);
+      if (pts.length) map.fitBounds(pts, { padding: [20, 20], maxZoom: 11 });
+    }
+
+    async function load() {
+      try {
+        const res = await fetch(DATA_URL, { cache: 'no-cache' });
+        data = await res.json();
+        const sidos = [...new Set(data.airkorea.map((r) => r.s))].sort();
+        document.getElementById('sido').insertAdjacentHTML('beforeend', sidos.map((s) => `<option value="${s}">${s}</option>`).join(''));
+        const names = [...new Set([...data.airkorea, ...data.labco].map((r) => r.n))].sort();
+        document.getElementById('names').innerHTML = names.map((n) => `<option value="${n}">`).join('');
+        const ageH = (Date.now() - new Date(data.updated).getTime()) / 3600e3;
+        document.getElementById('status').textContent =
+          `측정 ${data.dataTime ?? ''} · 공식 ${data.airkorea.length}곳 · 랩코 ${data.labco.length}대` + (ageH > 3 ? ` · ${Math.round(ageH)}시간 전 자료` : '');
+        draw();
+      } catch (e) {
+        document.getElementById('status').textContent = '데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+      }
+    }
+
+    document.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => {
+      metric = b.dataset.metric;
+      document.querySelectorAll('.seg button').forEach((x) => x.setAttribute('aria-selected', x === b));
+      draw();
+    }));
+    document.getElementById('sido').addEventListener('change', () => { draw(); fitSido(); });
+    document.getElementById('q').addEventListener('change', (e) => {
+      const q = e.target.value.trim(); if (!data || !q) return;
+      const hit = [...data.airkorea, ...data.labco].find((r) => r.n === q) ?? [...data.airkorea, ...data.labco].find((r) => r.n.includes(q));
+      if (hit) { map.setView([hit.lat, hit.lng], 12); }
+    });
+    document.getElementById('locate').addEventListener('click', () => {
+      navigator.geolocation?.getCurrentPosition((p) => map.setView([p.coords.latitude, p.coords.longitude], 12));
+    });
+    map.on('zoomend', draw);
+    load();
+  </script>
+
+  <style>
+    .map-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .map-head h1 { margin-bottom: 2px; }
+    .map-head p { margin: 0 0 6px; }
+    .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 8px; }
+    .seg button { background: var(--surface); color: var(--text); border-radius: 0; padding: 8px 16px; font-weight: 600; }
+    .seg button[aria-selected="true"] { background: var(--accent); color: #fff; }
+    .map-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+    .map-bar select, .map-bar input { width: auto; min-width: 120px; }
+    .map-bar input[type="search"] { flex: 1 1 160px; }
+    .map-bar button { padding: 8px 12px; font-size: 0.9rem; }
+    .summary { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 8px; font-size: 0.88rem; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; }
+    .chip i, .legend-item i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+    #map { height: 68vh; min-height: 420px; border-radius: var(--radius); border: 1px solid var(--border); z-index: 0; }
+    .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.85rem; margin: 8px 0 6px; }
+    .legend-item { display: inline-flex; align-items: center; gap: 5px; }
+    :global(.leaflet-tooltip.val) { background: rgba(255,255,255,.92); border: 0; border-radius: 4px; padding: 1px 5px; font-size: 11px; font-weight: 700; color: #222; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+    :global(.leaflet-tooltip.val::before) { display: none; }
+    :global(.pp table) { margin: 6px 0 0; font-size: 0.9rem; }
+    :global(.pp td) { border: 0; padding: 2px 8px 2px 0; text-align: left; }
+    :global(.leaflet-popup-content) { margin: 10px 12px; color: #1a1d23; }
+    @media (max-width: 640px) { #map { height: 60vh; } .seg button { padding: 7px 12px; } }
+  </style>
+</Base>

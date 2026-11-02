@@ -1,0 +1,105 @@
+---
+import Base from '../../layouts/Base.astro';
+import AdSlot from '../../components/AdSlot.astro';
+import LabcoCta from '../../components/LabcoCta.astro';
+import { FED_209E, GMP_GRADES, FT3_PER_M3, LPM_PER_CFM } from '../../data/iso14644';
+
+const title = '입자 측정 단위 변환기·등급 대응표';
+const description =
+  '개/ft³ ↔ 개/m³, CFM ↔ L/min 단위 변환기와 FED-STD-209E ↔ ISO 14644-1, EU GMP Annex 1(2022) Grade ↔ ISO 등급 대응표.';
+const n = (v: number | null | 'NP') => (v === null ? 'Not specified' : v === 'NP' ? 'Not predetermined' : v.toLocaleString('ko-KR'));
+---
+
+<Base title={title} description={description}>
+  <h1>{title}</h1>
+
+  <h2>단위 변환</h2>
+  <div class="calc" id="conv">
+    <h3 style="margin-top:0">입자 농도</h3>
+    <div class="row">
+      <div><label for="pft">개/ft³ (particles/ft³)</label><input id="pft" type="number" step="any" inputmode="decimal" placeholder="예: 100" /></div>
+      <div><label for="pm3">개/m³ (particles/m³)</label><input id="pm3" type="number" step="any" inputmode="decimal" placeholder="예: 3,531" /></div>
+    </div>
+    <p class="small muted">1 m³ = {FT3_PER_M3} ft³. FED-STD-209E 의 Class 100 (100 개/ft³ @0.5 µm) 은 3,531 개/m³ 이며, ISO 5 의 3,520 은 이를 유효숫자 3자리로 반올림한 값입니다.</p>
+
+    <h3>유량</h3>
+    <div class="row">
+      <div><label for="cfm">CFM (ft³/min)</label><input id="cfm" type="number" step="any" inputmode="decimal" placeholder="예: 1" /></div>
+      <div><label for="lpm">L/min</label><input id="lpm" type="number" step="any" inputmode="decimal" placeholder="예: 28.3" /></div>
+    </div>
+    <p class="small muted">1 CFM = {LPM_PER_CFM} L/min. 파티클 카운터는 보통 1 CFM(28.3 L/min) 또는 0.1 CFM(2.83 L/min) 유량을 씁니다.</p>
+
+    <h3>질량 농도</h3>
+    <div class="row">
+      <div><label for="ug">µg/m³</label><input id="ug" type="number" step="any" inputmode="decimal" placeholder="예: 35" /></div>
+      <div><label for="mg">mg/m³</label><input id="mg" type="number" step="any" inputmode="decimal" placeholder="예: 0.035" /></div>
+    </div>
+    <p class="small muted">미세먼지(PM) 농도는 µg/m³, 작업환경 분진 노출 기준은 mg/m³ 로 적는 경우가 많습니다. 1 mg = 1,000 µg.</p>
+  </div>
+
+  <AdSlot slot="converter-mid" />
+
+  <h2>FED-STD-209E ↔ ISO 14644-1 대응</h2>
+  <p>미국 연방 표준 FED-STD-209E 는 2001년 폐지되었지만 "Class 100", "Class 1000" 같은 호칭은 현장에서 여전히 쓰입니다. 0.5 µm 이상 입자 농도 기준입니다.</p>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>FED-STD-209E</th><th>개/ft³ (≥0.5 µm)</th><th>개/m³ (≥0.5 µm)</th><th>ISO 14644-1</th></tr></thead>
+      <tbody>
+        {FED_209E.map((r) => (
+          <tr><td>{r.fed}</td><td>{r.perFt3.toLocaleString('ko-KR')}</td><td>{r.perM3.toLocaleString('ko-KR')}</td><td>{r.iso}</td></tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p class="small muted">ISO 1·2 와 ISO 9 는 209E 에 대응하는 등급이 없습니다.</p>
+
+  <h2>EU GMP Annex 1 (2022) Grade ↔ ISO 등급</h2>
+  <p>
+    유럽 GMP Annex 1 "무균 의약품 제조"(2022년 8월 개정, 2023년 8월 시행) Table 1 의 총입자 분류 한계입니다.
+    "at rest"는 설비 가동·인원 부재 상태, "in operation"은 정상 작업 중 상태입니다.
+  </p>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th rowspan="2">Grade</th>
+          <th colspan="2">≥ 0.5 µm (개/m³)</th>
+          <th colspan="2">≥ 5 µm (개/m³)</th>
+          <th colspan="2">ISO 대응 (0.5 µm 기준, 참고)</th>
+        </tr>
+        <tr><th>at rest</th><th>in operation</th><th>at rest</th><th>in operation</th><th>at rest</th><th>in operation</th></tr>
+      </thead>
+      <tbody>
+        {GMP_GRADES.map((g) => (
+          <tr>
+            <td>Grade {g.grade}</td>
+            <td>{n(g.atRest05)}</td><td>{n(g.inOp05)}</td>
+            <td>{n(g.atRest5)}</td><td>{n(g.inOp5)}</td>
+            <td>{g.isoAtRest}</td><td>{g.isoInOp}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p class="small muted">
+    "Not specified"(각주 a): 오염관리전략(CCS)이나 이력 추세가 요구하면 5 µm 를 포함한 분류를 고려할 수 있음.
+    "Not predetermined"(각주 b): Grade D 운전 중 한계는 제조사가 위험평가와 운전 데이터로 설정.
+    ISO 대응 열은 Annex 1 본문 표에 있는 것이 아니라 0.5 µm 한계값이 같은 ISO 등급을 적은 참고 정보입니다.
+  </p>
+
+  <LabcoCta />
+
+  <script define:vars={{ FT3_PER_M3, LPM_PER_CFM }}>
+    // 양방향 변환: 한 쪽을 입력하면 다른 쪽이 즉시 바뀐다.
+    function pair(aId, bId, factor) {
+      const a = document.getElementById(aId);
+      const b = document.getElementById(bId);
+      const show = (el, v) => (el.value = Number.isFinite(v) ? String(+v.toPrecision(6)) : '');
+      a.addEventListener('input', () => (a.value === '' ? (b.value = '') : show(b, Number(a.value) * factor)));
+      b.addEventListener('input', () => (b.value === '' ? (a.value = '') : show(a, Number(b.value) / factor)));
+    }
+    pair('pft', 'pm3', FT3_PER_M3);
+    pair('cfm', 'lpm', LPM_PER_CFM);
+    pair('ug', 'mg', 0.001);
+  </script>
+</Base>

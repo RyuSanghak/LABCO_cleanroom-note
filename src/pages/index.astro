@@ -1,0 +1,96 @@
+---
+import Base from '../layouts/Base.astro';
+import HeroDashboard from '../components/HeroDashboard.astro';
+import { SITE } from '../site';
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('articles', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime())
+  .slice(0, 6);
+
+const dataUrl = (import.meta.env.PUBLIC_AIRKOREA_DATA_URL as string | undefined) || '/data/airkorea.json';
+
+// 계산기 카드: 이름, 한 줄 설명, 아이콘(인라인 SVG 패스)
+const tools = [
+  { href: '/tools/iso-class/', name: 'ISO 등급 판정', desc: '입자 농도 → ISO Class', icon: 'M4 17h4v3H4zm6-6h4v9h-4zm6-6h4v15h-4z' },
+  { href: '/tools/sampling-locations/', name: '샘플링 위치·부피', desc: '면적 → 위치 수, 등급 → 샘플 부피', icon: 'M4 4h16v16H4zM9 9h2v2H9zm4 0h2v2h-2zm-4 4h2v2H9zm4 0h2v2h-2z' },
+  { href: '/tools/unit-converter/', name: '단위 변환', desc: '개/ft³ ↔ 개/m³, CFM ↔ L/min', icon: 'M7 7h10l-3-3m3 3-3 3M17 17H7l3-3m-3 3 3 3' },
+];
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: SITE.name,
+  url: Astro.site?.toString(),
+  description: SITE.description,
+  inLanguage: 'ko',
+};
+---
+
+<Base title={SITE.name} jsonLd={jsonLd}>
+  <section class="hero-grid">
+    <div>
+      <h1>클린룸 측정,<br />계산하고 이해하기</h1>
+      <p>ISO 14644-1 계산기, 전국 미세먼지 지도, 입자 측정 실무 지식</p>
+      <div class="hero-actions">
+        <a class="btn" href="/tools/">계산기</a>
+        <a class="btn ghost" href="/map/">미세먼지 지도</a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <HeroDashboard />
+    </div>
+  </section>
+
+  <section class="home-section">
+    <h2>계산기</h2>
+    <div class="grid tools-grid">
+      {tools.map((t) => (
+        <a class="card tool-card" href={t.href}>
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d={t.icon} /></svg>
+          <h3>{t.name}</h3>
+          <p>{t.desc}</p>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <section class="home-section">
+    <a class="map-card" href="/map/">
+      <img src="/img/map-preview.png" alt="전국 미세먼지 지도 미리보기" width="702" height="571" loading="lazy" />
+      <div class="map-card-body">
+        <h2>전국 미세먼지 지도</h2>
+        <p class="muted">공식 측정소 673곳과 랩코 측정망을 한 지도에서, 매시간 갱신</p>
+        <div class="chips" id="live-chips"></div>
+        <span class="more">지도 열기 →</span>
+      </div>
+    </a>
+    <p class="small muted" style="margin-top:6px">지도: © OpenStreetMap contributors · 자료: 한국환경공단 에어코리아, 랩코</p>
+  </section>
+
+  <section class="home-section">
+    <h2>지식</h2>
+    <ul class="post-list">
+      {posts.map((p) => (
+        <li><a href={`/articles/${p.id}/`}>{p.data.short ?? p.data.title}</a></li>
+      ))}
+    </ul>
+    <p class="more"><a href="/articles/">모든 글 →</a></p>
+  </section>
+
+  <section class="home-section">
+    <p class="muted small">국산 파티클 카운터가 필요하신가요? <a href="/labco/">랩코(LABCO) 제품 보기</a></p>
+  </section>
+
+  <script define:vars={{ DATA_URL: dataUrl }}>
+    // 지도 카드에 지금 전국 PM2.5 등급 분포를 보여준다. 실패하면 조용히 비워 둔다.
+    const G = { 1: ['좋음', '#2e86de'], 2: ['보통', '#27ae60'], 3: ['나쁨', '#f39c12'], 4: ['매우 나쁨', '#e74c3c'] };
+    fetch(DATA_URL).then((r) => r.json()).then((d) => {
+      const c = { 1: 0, 2: 0, 3: 0, 4: 0 };
+      for (const r of [...d.airkorea, ...d.labco]) if (r.g25) c[r.g25]++;
+      document.getElementById('live-chips').innerHTML =
+        `<span class="chip muted">지금 PM2.5</span>` +
+        [1, 2, 3, 4].map((k) => `<span class="chip"><i style="background:${G[k][1]}"></i>${G[k][0]} <b>${c[k]}</b></span>`).join('');
+    }).catch(() => {});
+  </script>
+</Base>

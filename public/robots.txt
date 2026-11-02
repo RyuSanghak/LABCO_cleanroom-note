@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://cleanroom-portal.pages.dev/sitemap-index.xml

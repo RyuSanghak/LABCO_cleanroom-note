@@ -1,0 +1,21 @@
+{
+  "name": "cleanroom-portal",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "fetch:airkorea": "node scripts/fetch-airkorea.mjs",
+    "check:links": "node scripts/check-links.mjs dist",
+    "check": "npm run build && npm run check:links"
+  },
+  "dependencies": {
+    "@astrojs/sitemap": "^3.7.4",
+    "astro": "^5.18.2",
+    "remark-gfm": "^4.0.1"
+  },
+  "private": true,
+  "description": "클린룸·입자 측정 지식 포털 + 계산기 + 전국 미세먼지 지도"
+}

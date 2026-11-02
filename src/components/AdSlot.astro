@@ -1,0 +1,30 @@
+---
+/**
+ * 광고 자리.
+ * - 환경 변수 PUBLIC_ADSENSE_CLIENT(예: ca-pub-XXXX)가 있으면 애드센스 유닛을 렌더링한다.
+ * - 없으면 개발 모드에서만 점선 자리표시자를 보여주고, 배포에서는 아무것도 출력하지 않는다.
+ * 애드센스 승인 후 .env 또는 Cloudflare 환경 변수에 클라이언트 ID만 넣으면 된다.
+ */
+interface Props {
+  /** 애드센스 광고 단위 ID. 승인 전에는 자리 이름으로 쓴다. */
+  slot: string;
+  format?: 'auto' | 'rectangle' | 'horizontal';
+}
+const { slot, format = 'auto' } = Astro.props;
+const client = import.meta.env.PUBLIC_ADSENSE_CLIENT as string | undefined;
+---
+
+{client ? (
+  <div class="ad">
+    <ins
+      class="adsbygoogle"
+      style="display:block"
+      data-ad-client={client}
+      data-ad-slot={slot}
+      data-ad-format={format}
+      data-full-width-responsive="true"></ins>
+    <script is:inline>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+  </div>
+) : import.meta.env.DEV ? (
+  <div class="ad"><div class="ad-placeholder">광고 자리 · {slot}</div></div>
+) : null}

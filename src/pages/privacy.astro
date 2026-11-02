@@ -1,0 +1,60 @@
+---
+import Base from '../layouts/Base.astro';
+import { SITE } from '../site';
+const updated = '2026-11-01';
+---
+
+<Base title="개인정보처리방침" description={`${SITE.name}의 개인정보처리방침과 쿠키·광고 안내.`}>
+  <article class="article">
+    <h1>개인정보처리방침</h1>
+    <p class="article-meta">최종 수정: {updated}</p>
+
+    <p>
+      {SITE.name}(이하 "사이트")는 방문자의 개인정보를 중요하게 생각합니다.
+      이 문서는 사이트가 어떤 정보를 수집하고 어떻게 사용하는지 설명합니다.
+    </p>
+
+    <h2>1. 사이트가 직접 수집하는 정보</h2>
+    <p>
+      사이트는 회원가입이나 로그인을 요구하지 않으며, 계산기 입력값은 방문자의 브라우저 안에서만 처리되고 서버로 전송·저장되지 않습니다.
+      이메일로 문의하시는 경우, 답변에 필요한 범위에서 보내주신 이메일 주소와 내용을 보관하며 목적 달성 후 지체 없이 삭제합니다.
+    </p>
+
+    <h2>2. 쿠키와 광고 (Google AdSense)</h2>
+    <p>
+      사이트는 Google AdSense 광고를 게재합니다. Google 을 포함한 제3자 광고 사업자는 쿠키를 사용하여
+      방문자가 이 사이트와 다른 웹사이트를 방문한 기록을 바탕으로 광고를 게재할 수 있습니다.
+    </p>
+    <ul>
+      <li>Google 은 광고 쿠키를 사용하여 사용자의 이전 방문 기록에 근거한 광고를 제공합니다.</li>
+      <li>방문자는 <a href="https://www.google.com/settings/ads" rel="noopener" target="_blank">Google 광고 설정</a>에서 맞춤 광고를 해제할 수 있습니다.</li>
+      <li>제3자 광고 사업자의 쿠키 사용은 <a href="https://www.aboutads.info/choices/" rel="noopener" target="_blank">www.aboutads.info</a>에서 해제할 수 있습니다.</li>
+      <li>Google 의 데이터 사용 방식은 <a href="https://policies.google.com/technologies/partner-sites" rel="noopener" target="_blank">Google 파트너 사이트 데이터 사용 안내</a>를 참고하십시오.</li>
+    </ul>
+
+    <h2>3. 방문 통계</h2>
+    <p>
+      사이트는 호스팅 서비스(Cloudflare)가 제공하는 집계형 방문 통계를 사용할 수 있습니다.
+      이 통계는 개인을 식별하지 않으며, 페이지 조회 수와 유입 경로 같은 합산 정보만 다룹니다.
+    </p>
+
+    <h2>4. 외부 링크</h2>
+    <p>
+      사이트에는 표준 기관, 공공기관, 제조사 등 외부 사이트로 연결되는 링크가 있습니다.
+      외부 사이트의 개인정보 처리는 해당 사이트의 방침을 따르며 사이트는 이에 책임을 지지 않습니다.
+    </p>
+
+    <h2>5. 아동의 개인정보</h2>
+    <p>사이트는 만 14세 미만 아동을 대상으로 하지 않으며, 아동의 개인정보를 의도적으로 수집하지 않습니다.</p>
+
+    <h2>6. 방침의 변경</h2>
+    <p>이 방침이 바뀌면 이 페이지에 수정 날짜와 함께 게시합니다.</p>
+
+    <h2>7. 문의</h2>
+    {SITE.contactEmail ? (
+      <p>개인정보 관련 문의: <a href={`mailto:${SITE.contactEmail}`}>{SITE.contactEmail}</a></p>
+    ) : (
+      <p>개인정보 관련 문의 이메일은 준비 중이며, 확정되는 즉시 이 페이지에 게시합니다.</p>
+    )}
+  </article>
+</Base>

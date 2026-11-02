@@ -1,0 +1,24 @@
+---
+import Base from '../../layouts/Base.astro';
+import AdSlot from '../../components/AdSlot.astro';
+
+const tools = [
+  { href: '/tools/iso-class/', name: 'ISO 등급 판정', desc: '입자 농도 → ISO Class 1~9' },
+  { href: '/tools/sampling-locations/', name: '샘플링 위치·부피', desc: '면적 → 위치 수, 등급 → 샘플 부피·시간' },
+  { href: '/tools/unit-converter/', name: '단위 변환·등급 대응표', desc: '개/ft³ ↔ 개/m³, CFM ↔ L/min, 209E·GMP 대응' },
+];
+---
+
+<Base title="계산기" description="ISO 14644-1 청정도 등급 계산기, 샘플링 위치 수·샘플 부피 계산기, 입자 농도·유량 단위 변환기. 클린룸 실무용 무료 도구.">
+  <h1>계산기</h1>
+  <div class="grid tools-grid">
+    {tools.map((t) => (
+      <a class="card tool-card" href={t.href}>
+        <h3>{t.name}</h3>
+        <p>{t.desc}</p>
+      </a>
+    ))}
+  </div>
+  <p class="small muted" style="margin-top:14px">입력값은 브라우저 안에서만 계산되고 저장되지 않습니다.</p>
+  <AdSlot slot="tools-index" />
+</Base>

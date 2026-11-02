@@ -1,0 +1,111 @@
+---
+import Base from '../../layouts/Base.astro';
+import AdSlot from '../../components/AdSlot.astro';
+import { SITE } from '../../site';
+
+const title = '랩코(LABCO) 파티클 카운터·미세먼지 측정기';
+const description =
+  '국산 파티클 카운터 제조사 랩코(LABCO)의 모니터링 전용 파티클 카운터 LPC 시리즈, 포터블 카운터, 미세먼지 측정기 라인업과 핵심 사양.';
+const official = SITE.labcoUrl;
+
+// 한 줄 설명 + 핵심 사양 3개만. 사진은 공식 사이트·카탈로그 원본 중 큰 쪽(public/img/labco).
+const particle = [
+  { model: 'LPC-R203PLUS', idx: 1, tag: '모니터링', img: 'lpc-r203plus', desc: '24시간 상시 모니터링용 표준 모델', specs: ['0.3~5.0 µm 2채널', '0.1 CFM', 'Ethernet · 무선 옵션'] },
+  { model: 'LPC-R205', idx: 2, tag: 'GMP', img: 'lpc-r205', desc: '0.5·5.0 µm 로 제약 GMP 등급 관리', specs: ['0.5 / 5.0 µm 2채널', '1 CFM', 'Ethernet · 온습도 옵션'] },
+  { model: 'LPC-200', idx: 31, tag: '고정밀', img: 'lpc-200', desc: '0.1 µm 초미세입자 계측, 연구·교정용', specs: ['0.1 / 0.2 µm', '0.1 CFM', 'Bluetooth'] },
+  { model: 'CM-L105', idx: 11, tag: '단일채널', img: 'cm-l105', desc: '0.5 µm 단일 채널 간이 확인용', specs: ['0.5 µm', '0.1 CFM', 'Ethernet · 무선 LAN'] },
+];
+
+const dust = [
+  { model: 'LYS-125', idx: 7, tag: '옥외', img: 'lys-125', desc: '히팅 제습 내장 옥외 상시 측정기', specs: ['PM10 · PM2.5', '-20~60 ℃', 'Ethernet · LTE-M 옵션'] },
+  { model: 'LDU 시리즈', idx: 9, tag: '실내', img: 'ldu', desc: '실내·포터블 측정기, 앱으로 확인', specs: ['PM1.0 · PM2.5 · PM10', '2.0 L/min', '배터리 옵션'] },
+  { model: 'DP-125', idx: 10, tag: '모듈', img: 'dp-125', desc: '장비 내장용 자가교정 센서 모듈', specs: ['PM10 · PM2.5', '80×37×25 mm', 'RS-232C · 4~20 mA'] },
+];
+
+const guide = [
+  ['클린룸 상시 모니터링', 'LPC-R203PLUS (일반) · LPC-R205 (GMP)'],
+  ['0.1 µm 급 연구·교정', 'LPC-200'],
+  ['라인 위 간이 확인', 'CM-L105'],
+  ['미세먼지 질량 농도', 'LYS-125 (옥외) · LDU (실내) · DP-125 (내장)'],
+];
+
+const history = [
+  ['2001', '창립 (광주)'],
+  ['2009', '파티클 카운터·미세먼지 측정기 개발 완료'],
+  ['2016', 'ISO 9001·14001, 100 nm 측정기 삼성전자 공동개발'],
+  ['2019', 'KT AirMapKorea 전국 측정망 2,000여 대 납품'],
+  ['2022', '광학센서 교정 특허, 산업통상자원부 NET 신기술 인증'],
+];
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: '주식회사 랩코 (LABCO Co., Ltd.)',
+  url: official,
+  email: 'sales@labco.co.kr',
+  telephone: '+82-31-404-5251',
+  address: { '@type': 'PostalAddress', addressLocality: '광주광역시 북구', addressCountry: 'KR' },
+};
+---
+
+<Base title={title} description={description} jsonLd={jsonLd}>
+  <h1>랩코(LABCO) 제품 안내</h1>
+  <p class="muted">2001년 광주에서 창립한 국산 파티클 카운터·미세먼지 측정기 제조사. 광산란 측정 원천기술과 자체 교정 시스템(ISO 21501-4)을 보유합니다.</p>
+  <p class="small"><a href={official} rel="noopener" target="_blank">랩코 공식 홈페이지 →</a></p>
+
+  {[['파티클 카운터', particle], ['미세먼지 측정기', dust]].map(([heading, items]) => (
+    <section class="home-section">
+      <h2>{heading}</h2>
+      <div class="grid product-grid">
+        {(items as typeof particle).map((p) => (
+          <a class="card product" href={`${official}/product.php?idx=${p.idx}`} target="_blank" rel="noopener">
+            <div class="photo"><img src={`/img/labco/${p.img}.png`} alt={`${p.model} 제품 사진`} loading="lazy" /></div>
+            <h3>{p.model} <span class="tag">{p.tag}</span></h3>
+            <p>{p.desc}</p>
+            <ul>{p.specs.map((s) => <li>{s}</li>)}</ul>
+          </a>
+        ))}
+      </div>
+    </section>
+  ))}
+
+  <AdSlot slot="labco-mid" />
+
+  <section class="home-section">
+    <h2>용도별 추천</h2>
+    <table class="compact">
+      <tbody>{guide.map(([use, m]) => <tr><td>{use}</td><td>{m}</td></tr>)}</tbody>
+    </table>
+  </section>
+
+  <section class="home-section">
+    <h2>연혁</h2>
+    <table class="compact">
+      <tbody>{history.map(([y, e]) => <tr><td class="year">{y}</td><td>{e}</td></tr>)}</tbody>
+    </table>
+  </section>
+
+  <section class="home-section">
+    <h2>문의</h2>
+    <p>
+      <a href="mailto:sales@labco.co.kr">sales@labco.co.kr</a> · 031-404-5251<br />
+      <span class="muted small">본사·연구소: 광주광역시 북구 첨단과기로208번길 43-10 마루힐IBC B동</span>
+    </p>
+  </section>
+
+  <style>
+    .product-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+    .photo { background: #fff; border-radius: 8px; height: 180px; display: flex; align-items: center; justify-content: center; margin: -4px 0 12px; }
+    .photo img { max-width: 88%; max-height: 160px; object-fit: contain; }
+    a.product { color: var(--text); }
+    a.product:hover { text-decoration: none; border-color: var(--accent); }
+    .product h3 { font-size: 1.02rem; display: flex; align-items: center; gap: 8px; }
+    .product p { font-size: 0.92rem; color: var(--text); }
+    .product ul { margin: 8px 0 0; padding: 0; list-style: none; font-size: 0.85rem; color: var(--muted); }
+    .product li { padding: 2px 0; }
+    table.compact { font-size: 0.93rem; }
+    table.compact td { text-align: left; border-left: 0; border-right: 0; padding: 8px 6px; }
+    table.compact tr:first-child td { border-top: 0; }
+    .year { width: 64px; color: var(--muted); white-space: nowrap; }
+  </style>
+</Base>

@@ -1,0 +1,47 @@
+# 매시간 전국 미세먼지 데이터를 받아 data 브랜치에 저장한다.
+# 사이트는 빌드 없이 그 파일(raw.githubusercontent.com/.../data/airkorea/airkorea.json)을 읽는다.
+#  - main 에 커밋하지 않는 이유: Cloudflare Pages 무료 빌드 한도(월 500회)를 시간별 커밋으로 소진하지 않기 위해.
+#  - 에어코리아 API 호출: 시간당 1회 + 측정소 목록 하루 1회 (하루 약 25회, 개발계정 한도 500회 안).
+name: airkorea
+
+on:
+  schedule:
+    - cron: '12 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 측정소 위치 캐시 복원 (KST 03시 = UTC 18시에는 건너뛰어 하루 1회 새로 받음)
+        run: |
+          mkdir -p public/data
+          if [ "$(date -u +%H)" != "18" ]; then
+            git fetch origin data:data 2>/dev/null && git show data:airkorea/stations.json > public/data/stations.json 2>/dev/null || true
+          fi
+      - name: 수집
+        env:
+          AIRKOREA_KEY: ${{ secrets.AIRKOREA_KEY }}
+          LABCO_API_URL: ${{ secrets.LABCO_API_URL }}
+        run: node scripts/fetch-airkorea.mjs
+      - name: data 브랜치에 저장
+        run: |
+          mkdir -p /tmp/out && cp public/data/*.json /tmp/out/
+          git config user.name "airkorea-bot"
+          git config user.email "actions@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin data >/dev/null; then
+            git fetch origin data:data && git checkout -q data
+          else
+            git checkout -q --orphan data && git rm -rfq . && git clean -fdq
+          fi
+          mkdir -p airkorea && cp /tmp/out/*.json airkorea/
+          git add airkorea
+          git commit -qm "airkorea $(date -u +%FT%TZ)" || { echo "변경 없음"; exit 0; }
+          git push -q origin data

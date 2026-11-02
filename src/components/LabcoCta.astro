@@ -1,0 +1,12 @@
+---
+/** 글·계산기 하단에 들어가는 랩코 제품 안내. 문구는 한 곳에서만 관리한다. */
+interface Props {
+  text?: string;
+}
+const { text = '국산 파티클 카운터·미세먼지 측정기가 필요하신가요?' } = Astro.props;
+---
+
+<aside class="cta" aria-label="랩코 제품 안내">
+  <p>{text}</p>
+  <a class="btn" href="/labco/">랩코 제품 보기</a>
+</aside>

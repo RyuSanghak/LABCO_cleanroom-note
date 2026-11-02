@@ -1,0 +1,143 @@
+---
+import Base from '../../layouts/Base.astro';
+import AdSlot from '../../components/AdSlot.astro';
+import LabcoCta from '../../components/LabcoCta.astro';
+import { CLASS_LIMITS, SIZES, SAMPLING_LOCATIONS } from '../../data/iso14644';
+
+const title = '클린룸 샘플링 위치 수·샘플 부피 계산기';
+const description =
+  'ISO 14644-1:2015 Annex A 기준. 클린룸 면적으로 최소 샘플링 위치 수(Table A.1)를, 목표 등급과 입자 크기로 위치별 최소 샘플 부피와 측정 시간을 계산합니다.';
+const classes = Object.keys(CLASS_LIMITS).map(Number);
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: title,
+  applicationCategory: 'UtilitiesApplication',
+  operatingSystem: 'Web',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'KRW' },
+  description,
+};
+---
+
+<Base title={title} description={description} jsonLd={jsonLd}>
+  <h1>{title}</h1>
+  <p class="muted">몇 곳에서, 얼마나 샘플링해야 하는지 ISO 14644-1:2015 Annex A 기준으로 계산합니다.</p>
+
+  <form class="calc" id="smp-form" autocomplete="off">
+    <div class="row">
+      <div>
+        <label for="area">클린룸(또는 청정구역) 면적, m²</label>
+        <input id="area" type="number" min="0.1" step="any" inputmode="decimal" placeholder="예: 48" required />
+      </div>
+      <div>
+        <label for="cls">목표 ISO 등급</label>
+        <select id="cls">
+          {classes.map((c) => <option value={c} selected={c === 7}>ISO {c}</option>)}
+        </select>
+      </div>
+      <div>
+        <label for="size">고려하는 가장 큰 입자 크기</label>
+        <select id="size"></select>
+      </div>
+      <div>
+        <label for="flow">파티클 카운터 유량</label>
+        <select id="flow">
+          <option value="28.3">28.3 L/min (1 CFM)</option>
+          <option value="2.83">2.83 L/min (0.1 CFM)</option>
+          <option value="50">50 L/min</option>
+          <option value="100">100 L/min</option>
+        </select>
+      </div>
+    </div>
+    <button type="submit">계산</button>
+    <div id="smp-result" class="result" hidden></div>
+  </form>
+
+  <AdSlot slot="sampling-mid" />
+
+  <h2>계산 근거</h2>
+  <h3>1. 최소 샘플링 위치 수 N<sub>L</sub> (Table A.1)</h3>
+  <p>
+    면적이 표의 두 값 사이에 있으면 큰 쪽 값을 적용합니다. 면적이 1,000 m² 를 넘으면 표 대신 식 (A.1) <code>N<sub>L</sub> = 27 × (A / 1000)</code> 을 쓰고 올림합니다.
+    2015년 개정에서 위치 수가 1999년판보다 늘었고, 대신 95% 신뢰상한(UCL) 계산 요구가 삭제되었습니다.
+  </p>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>면적 (m²) 이하</th><th>최소 위치 수</th><th>면적 (m²) 이하</th><th>최소 위치 수</th></tr></thead>
+      <tbody>
+        {Array.from({ length: Math.ceil(SAMPLING_LOCATIONS.length / 2) }, (_, i) => {
+          const a = SAMPLING_LOCATIONS[i];
+          const b = SAMPLING_LOCATIONS[i + Math.ceil(SAMPLING_LOCATIONS.length / 2)];
+          return (
+            <tr>
+              <td>{a[0]}</td><td>{a[1]}</td>
+              <td>{b ? b[0] : ''}</td><td>{b ? b[1] : ''}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+
+  <h3>2. 위치별 최소 샘플 부피 V<sub>s</sub></h3>
+  <p>
+    농도가 한계값에 있다고 가정했을 때 고려하는 가장 큰 입자가 최소 20개는 세어지도록 부피를 정합니다.
+    <code>V<sub>s</sub> = (20 / C<sub>n,m</sub>) × 1000</code> (L). 여기서 C<sub>n,m</sub> 은 목표 등급에서 그 입자 크기의 한계 농도(개/m³)입니다.
+    계산값이 작아도 위치당 최소 2 L, 최소 1분은 샘플링해야 합니다. 2015년판부터 위치당 한 번의 샘플이면 충분합니다(원하면 더 할 수 있음).
+  </p>
+  <div class="notice">
+    참고용 도구입니다. 위치 배치와 측정 절차는 <a href="/articles/cleanroom-sampling-procedure/">분류 측정 절차</a> 글과 표준 원문을 따르십시오.
+  </div>
+
+  <LabcoCta />
+
+  <script define:vars={{ LIMITS: CLASS_LIMITS, SIZES, TABLE: SAMPLING_LOCATIONS }}>
+    const form = document.getElementById('smp-form');
+    const out = document.getElementById('smp-result');
+    const clsSel = document.getElementById('cls');
+    const sizeSel = document.getElementById('size');
+
+    // 등급을 바꾸면 그 등급에 한계가 정의된 입자 크기만 고를 수 있게 한다.
+    function fillSizes() {
+      const c = Number(clsSel.value);
+      const defined = SIZES.filter((s) => LIMITS[c][s] !== null);
+      sizeSel.innerHTML = defined.map((s) => `<option value="${s}">≥ ${s} µm (한계 ${LIMITS[c][s].toLocaleString('ko-KR')}/m³)</option>`).join('');
+      sizeSel.value = String(defined.includes(0.5) ? 0.5 : defined[defined.length - 1]);
+    }
+    clsSel.addEventListener('change', fillSizes);
+    fillSizes();
+
+    function locations(area) {
+      if (area > 1000) return Math.ceil((27 * area) / 1000);
+      for (const [limit, n] of TABLE) if (area <= limit) return n;
+      return 27;
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const area = Number(document.getElementById('area').value);
+      const c = Number(clsSel.value);
+      const size = Number(sizeSel.value);
+      const flow = Number(document.getElementById('flow').value);
+      const limit = LIMITS[c][size];
+      if (!Number.isFinite(area) || area <= 0 || limit === null) return;
+
+      const nl = locations(area);
+      const vsRaw = (20 / limit) * 1000; // L
+      const vs = Math.max(2, vsRaw);
+      const minutes = Math.max(1, vs / flow);
+      const total = nl * minutes;
+      const f = (n, d = 1) => n.toLocaleString('ko-KR', { maximumFractionDigits: d });
+
+      out.hidden = false;
+      out.innerHTML = `
+        <strong class="big">최소 ${nl} 곳 · 위치당 ${f(vs, 2)} L 이상</strong>
+        <ul class="small" style="margin:10px 0 0">
+          <li>샘플링 위치 수: 면적 ${f(area)} m² → <b>${nl} 곳</b>${area > 1000 ? ' (식 A.1 적용, 올림)' : ' (Table A.1)'}. 클린룸을 ${nl}개의 동일 면적 구역으로 나누고 각 구역에 대표 위치 1곳.</li>
+          <li>위치별 최소 샘플 부피: 20 / ${limit.toLocaleString('ko-KR')} × 1000 = ${f(vsRaw, 3)} L${vsRaw < 2 ? ' → 최소 2 L 규정 적용' : ''} → <b>${f(vs, 2)} L</b></li>
+          <li>위치별 최소 측정 시간 (${flow} L/min): ${f(vs / flow, 2)} 분${vs / flow < 1 ? ' → 최소 1분 규정 적용' : ''} → <b>${f(minutes, 1)} 분</b></li>
+          <li>전체 최소 샘플링 시간: ${nl} × ${f(minutes, 1)} = <b>약 ${f(total, 0)} 분</b> (이동·안정화 시간 제외)</li>
+        </ul>`;
+    });
+  </script>
+</Base>

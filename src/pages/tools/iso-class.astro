@@ -1,0 +1,147 @@
+---
+import Base from '../../layouts/Base.astro';
+import AdSlot from '../../components/AdSlot.astro';
+import LabcoCta from '../../components/LabcoCta.astro';
+import { CLASS_LIMITS, SIZES, FT3_PER_M3 } from '../../data/iso14644';
+
+const title = 'ISO 14644-1 청정도 등급 계산기';
+const description =
+  '입자 크기별 농도(개/m³ 또는 개/ft³)를 입력하면 ISO 14644-1:2015 Table 1 기준으로 ISO Class 1~9 등급을 판정합니다. 등급별 허용 한계표 포함.';
+const classes = Object.keys(CLASS_LIMITS).map(Number);
+const fmt = (n: number | null) => (n === null ? '—' : n.toLocaleString('ko-KR'));
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: title,
+  applicationCategory: 'UtilitiesApplication',
+  operatingSystem: 'Web',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'KRW' },
+  description,
+};
+---
+
+<Base title={title} description={description} jsonLd={jsonLd}>
+  <h1>{title}</h1>
+  <p class="muted">입자 크기별 농도를 입력하면 ISO 14644-1:2015 기준 등급을 판정합니다. 빈 칸은 제외됩니다.</p>
+
+  <form class="calc" id="iso-form" autocomplete="off">
+    <div class="row">
+      <div>
+        <label for="unit">입력 단위</label>
+        <select id="unit">
+          <option value="m3">개/m³ (particles/m³)</option>
+          <option value="ft3">개/ft³ (particles/ft³)</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      {SIZES.map((s) => (
+        <div>
+          <label for={`s-${s}`}>≥ {s} µm</label>
+          <input id={`s-${s}`} data-size={s} type="number" min="0" step="any" inputmode="decimal" placeholder="농도" />
+        </div>
+      ))}
+    </div>
+    <button type="submit">등급 판정</button>
+    <button type="reset" class="secondary">지우기</button>
+    <div id="iso-result" class="result" hidden></div>
+  </form>
+
+  <AdSlot slot="iso-class-mid" />
+
+  <h2>ISO 14644-1:2015 Table 1 — 등급별 최대 허용 농도 (개/m³)</h2>
+  <div class="table-scroll">
+    <table id="limit-table">
+      <thead>
+        <tr><th>ISO Class</th>{SIZES.map((s) => <th>≥ {s} µm</th>)}</tr>
+      </thead>
+      <tbody>
+        {classes.map((c) => (
+          <tr data-class={c}>
+            <td>ISO {c}</td>
+            {SIZES.map((s) => <td data-size={s}>{fmt(CLASS_LIMITS[c][s])}</td>)}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p class="small muted">
+    "—" 는 표준이 그 칸에 농도 한계를 두지 않은 영역입니다. 작은 등급의 큰 입자(각주 d·e)는 입자 수가 너무 적어 통계적으로 분류에 부적합하고,
+    큰 등급의 작은 입자(각주 c)는 농도가 너무 높아 적용하지 않습니다. ISO 5 의 5 µm 는 2015년 개정에서 한계값이 삭제되어 필요 시 M 디스크립터(macroparticle descriptor)를 사용합니다.
+    ISO 9 는 운전 중(in operation) 상태에만 적용됩니다.
+  </p>
+
+  <h2>판정 방식</h2>
+  <ol>
+    <li>입력한 각 입자 크기에 대해, 그 농도를 넘지 않는 가장 낮은 등급을 찾습니다.</li>
+    <li>여러 크기를 입력했으면 그중 가장 높은(나쁜) 등급이 전체 판정 등급입니다. 한 크기만 한계를 넘어도 그 등급을 만족하지 못하기 때문입니다.</li>
+    <li>표에 한계가 없는 칸(—)은 건너뛰고 한계가 있는 다음 등급과 비교합니다.</li>
+  </ol>
+  <div class="notice">
+    참고용 도구입니다. 공식 분류는 위치 수·샘플 부피 요건(<a href="/tools/sampling-locations/">샘플링 계산기</a>)을 함께 만족해야 합니다.
+  </div>
+
+  <LabcoCta />
+
+  <script define:vars={{ LIMITS: CLASS_LIMITS, SIZES, FT3_PER_M3 }}>
+    const form = document.getElementById('iso-form');
+    const out = document.getElementById('iso-result');
+    const table = document.getElementById('limit-table');
+    const classes = Object.keys(LIMITS).map(Number);
+    const fmt = (n) => n.toLocaleString('ko-KR', { maximumFractionDigits: 0 });
+
+    // 한 입자 크기의 농도로 가장 낮은 만족 등급을 찾는다. 한계가 없는 칸은 건너뛴다.
+    function classFor(size, perM3) {
+      let hasAnyLimit = false;
+      for (const c of classes) {
+        const limit = LIMITS[c][size];
+        if (limit === null) continue;
+        hasAnyLimit = true;
+        if (perM3 <= limit) return { cls: c, limit };
+      }
+      return { cls: hasAnyLimit ? Infinity : null, limit: null };
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const unit = document.getElementById('unit').value;
+      const rows = [];
+      for (const size of SIZES) {
+        const raw = document.getElementById(`s-${size}`).value;
+        if (raw === '') continue;
+        const v = Number(raw);
+        if (!Number.isFinite(v) || v < 0) continue;
+        const perM3 = unit === 'ft3' ? v * FT3_PER_M3 : v;
+        rows.push({ size, perM3, ...classFor(size, perM3) });
+      }
+      table.querySelectorAll('tr').forEach((tr) => (tr.style.background = ''));
+      if (!rows.length) {
+        out.hidden = false;
+        out.innerHTML = '<span class="warn">최소 한 개 입자 크기의 농도를 입력하세요.</span>';
+        return;
+      }
+      const judged = rows.filter((r) => r.cls !== null);
+      const worst = Math.max(...judged.map((r) => r.cls));
+      let head;
+      if (!judged.length) head = '<strong class="big warn">판정 불가</strong>입력한 입자 크기에는 표준이 한계를 정하지 않았습니다.';
+      else if (worst === Infinity) head = '<strong class="big bad">ISO 9 초과</strong>가장 느슨한 등급의 한계도 넘습니다.';
+      else head = `<strong class="big ok">ISO Class ${worst}</strong>입력한 모든 크기의 농도가 ISO ${worst} 한계 이하입니다.`;
+      const detail = rows
+        .map((r) => {
+          const c = r.cls === null ? '한계 없음' : r.cls === Infinity ? 'ISO 9 초과' : `ISO ${r.cls} (한계 ${fmt(r.limit)})`;
+          return `<li>≥ ${r.size} µm: ${fmt(r.perM3)} 개/m³ → ${c}</li>`;
+        })
+        .join('');
+      out.hidden = false;
+      out.innerHTML = `${head}<ul class="small" style="margin:10px 0 0">${detail}</ul>`;
+      if (Number.isFinite(worst)) {
+        const tr = table.querySelector(`tr[data-class="${worst}"]`);
+        if (tr) tr.style.background = 'var(--accent-soft)';
+      }
+    });
+    form.addEventListener('reset', () => {
+      out.hidden = true;
+      table.querySelectorAll('tr').forEach((tr) => (tr.style.background = ''));
+    });
+  </script>
+</Base>
