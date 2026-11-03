@@ -1,0 +1,18 @@
+# 클린룸 노트 데이터 수집 Worker (Cloudflare)
+# 배포: cd worker && npx wrangler deploy
+# 비밀값: npx wrangler secret put AIRKOREA_KEY / LABCO_API_URL / REFRESH_TOKEN
+name = "cleanroom-note-data"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[triggers]
+crons = ["7 * * * *"]
+
+[[kv_namespaces]]
+binding = "DATA"
+id = "KV_NAMESPACE_ID"
+
+# 같은 계정의 도메인이라 배포 시 DNS 가 자동으로 잡힌다.
+[[routes]]
+pattern = "data.cleanroomnote.com"
+custom_domain = true
