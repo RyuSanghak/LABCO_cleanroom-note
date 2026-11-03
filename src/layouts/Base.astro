@@ -57,7 +57,7 @@ const path = Astro.url.pathname;
         <a class="brand" href="/"><span class="mark" aria-hidden="true"><i></i></span><span>{SITE.name}<small>{SITE.tagline}</small></span></a>
         <nav class="nav" aria-label="주 메뉴">
           {NAV.map((n) => (
-            <a href={n.href} aria-current={path.startsWith(n.href) ? 'page' : undefined}>{n.label}</a>
+            <a href={n.href} aria-current={(n.href === '/' ? path === '/' : path.startsWith(n.href)) ? 'page' : undefined}>{n.label}</a>
           ))}
         </nav>
       </div>

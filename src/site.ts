@@ -10,6 +10,7 @@ export const SITE = {
 };
 
 export const NAV = [
+  { href: '/', label: '메인' },
   { href: '/tools/', label: '계산기' },
   { href: '/map/', label: '지도' },
   { href: '/articles/', label: '지식' },
