@@ -83,6 +83,11 @@ async function fetchAirkorea() {
   return rows;
 }
 
+// 랩코 앱 서버의 inputDate 는 끝에 'Z' 가 붙어 있지만 실제로는 한국 시각(KST, UTC+9)이다 (DB 의 DATETIME 을 UTC 서버가 그대로 직렬화).
+// 그래서 파싱한 뒤 9시간을 빼야 진짜 UTC 가 된다. 서버가 고쳐지면 이 보정만 지우면 된다.
+const LABCO_KST_OFFSET_MS = 9 * 3600 * 1000;
+const parseLabcoTime = (s) => new Date(s).getTime() - LABCO_KST_OFFSET_MS;
+
 async function fetchLabco() {
   if (!LABCO_API()) { console.log('labco: skipped (LABCO_API_URL 미설정)'); return []; }
   try {
@@ -93,7 +98,7 @@ async function fetchLabco() {
     const rows = [];
     let stale = 0, empty = 0, outlier = 0;
     for (const d of devices) {
-      const t = new Date(d.inputDate).getTime();
+      const t = parseLabcoTime(d.inputDate);
       const pm10 = Number(d.pm10), pm25 = Number(d.pm25);
       if (!Number.isFinite(t) || now - t > 3 * 3600 * 1000) { stale++; continue; }
       if (!(pm10 > 0) || !(pm25 > 0)) { empty++; continue; }
