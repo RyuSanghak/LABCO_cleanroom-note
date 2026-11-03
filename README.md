@@ -20,7 +20,8 @@ scripts/check-links.mjs   빌드 결과의 내부 링크 검사
 scripts/dev/              랩코 DB 확인용 읽기 전용 스크립트 (로컬 전용, LABCO_server 폴더 필요)
 docs/logo-brief.md        로고 디자인 브리프 + AI 프롬프트
 .github/workflows/check.yml    push/PR 빌드+링크 검사, 6시간마다 라이브 점검(실패 시 incident 이슈)
-.github/workflows/airkorea.yml 매시간 데이터 수집 → data 브랜치
+.github/workflows/airkorea.yml 수동 데이터 수집 → data 브랜치 (보조, 상시 수집은 worker/)
+worker/                   Cloudflare Worker: 매시간 수집 → KV → data.cleanroomnote.com (상시 수집 주체)
 ```
 
 ## 디자인
@@ -42,9 +43,9 @@ Node 22 이상. 로컬 Node 가 22.13 이라 Astro 5 계열에 고정했다(Astr
 ## 배포 체크리스트
 
 1. GitHub 저장소 생성 후 push (`main`).
-2. 저장소 Settings → Secrets: `AIRKOREA_KEY`, `LABCO_API_URL`. Variables: `SITE_URL`.
-3. Actions 탭에서 `airkorea` 워크플로를 한 번 수동 실행해 `data` 브랜치가 생기는지 확인.
-4. Cloudflare Pages 연결(아래), 환경 변수 `SITE_URL`, `PUBLIC_AIRKOREA_DATA_URL` 입력.
+2. 저장소 Settings → Secrets: `AIRKOREA_KEY`, `LABCO_API_URL`(보조 워크플로용). Variables: `SITE_URL`.
+3. `worker/README.md` 대로 데이터 Worker 를 배포한다.
+4. Cloudflare Pages 연결(아래), 환경 변수 `SITE_URL` 입력.
 5. 도메인 연결 후 `public/robots.txt` 의 Sitemap 주소와 `.env.example` 의 SITE_URL 을 실제 도메인으로 교체.
 6. `src/site.ts` 의 `contactEmail` 입력. 사이트 이름 확정 시 `SITE.name` 교체.
 7. 글 10편 이상 확인됨 → 애드센스 신청. 승인 후 `PUBLIC_ADSENSE_CLIENT`, `public/ads.txt`.
@@ -72,10 +73,10 @@ Node 22 이상. 로컬 Node 가 22.13 이라 Astro 5 계열에 고정했다(Astr
 - 데이터 두 가지를 한 지도에 그린다.
   - **공식 측정소**: 한국환경공단 에어코리아 공공 API (공공누리 제3유형: 출처 표시, 변경 금지). 값·등급은 API 가 준 그대로.
   - **랩코 측정망**: 서비스 중인 앱 서버의 `/api/devices` (장비별 최신 PM10·PM2.5). 주소는 `.env`/Secrets 의 `LABCO_API_URL`. 품질 기준: 3시간 이상 끊김·값 0·비현실적 값(PM10>1000, PM2.5>500, PM2.5>PM10×1.5)은 제외, 등급은 에어코리아 1시간 등급과 같은 구간으로 계산, 시도명은 에어코리아 표기(전남광주 등)로 통일.
-- 수집: `node scripts/fetch-airkorea.mjs` → `public/data/airkorea.json` (+ 측정소 위치 캐시 `stations.json`, 하루 1회 갱신). 키는 `.env` 의 `AIRKOREA_KEY`.
+- 로컬 수집(개발용): `node scripts/fetch-airkorea.mjs` → `public/data/airkorea.json` (+ 측정소 위치 캐시 `stations.json`, 하루 1회 갱신). 키는 `.env` 의 `AIRKOREA_KEY`.
 - 운영(주): **Cloudflare Worker** `worker/` 가 매시간 7분 Cron 으로 수집해 KV 에 저장하고 `https://data.cleanroomnote.com/airkorea.json` 으로 제공한다. 사이트는 이 주소를 코드에 고정해 읽는다. 상태는 `/health`, 즉시 갱신은 `/refresh?token=…`. 배포·비밀값은 `worker/README.md`.
-  Worker 는 비표준 포트(랩코 서버 :3000)로 접속하지 못하므로 랩코 데이터는 직접 접속 실패 시 아래 GitHub 수집본에서 가져온다. 랩코 서버가 8080 포트도 열면 직접 접속으로 바뀐다.
-- 운영(보조): `.github/workflows/airkorea.yml` 이 매시간 `data` 브랜치 `airkorea/airkorea.json` 에 커밋한다(랩코 데이터의 대체 경로). GitHub 예약 실행이 늦게 켜지는 동안은 claude.ai routine 이 매시간 대신 실행시킨다.
+  Workers 는 IP 직접 접속과 비표준 포트를 허용하지 않아, 랩코 서버는 nginx 로 80 포트를 열고(`/api/` 만 3000 으로 프록시) DNS 레코드 `labco-api.cleanroomnote.com`(DNS only) 으로 접속한다. 직접 접속이 실패하면 이전 수집분을 유지하고 `labcoNote` 에 기록한다.
+- 보조: `.github/workflows/airkorea.yml` 은 수동 실행(workflow_dispatch) 전용으로 남겨 두었다. 실행하면 `data` 브랜치 `airkorea/airkorea.json` 에 커밋한다.
 - 지도: Leaflet(cdnjs) + OpenStreetMap. PM2.5/PM10 전환, 시도 선택(해당 지역으로 이동), 측정소 검색, 등급별 요약, 줌 11 이상에서 값 표시, 공식/랩코 레이어 켜고 끄기.
 - API 호출량: 시간당 1회 + 측정소 목록 하루 1회 ≈ 하루 25회 (개발계정 한도 500회). 사이트 공개 후 운영계정 신청 권장.
 

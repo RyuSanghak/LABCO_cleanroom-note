@@ -3,7 +3,7 @@
  *  - Cron(매시간 7분)으로 에어코리아 전국 실시간 측정값 + 랩코 측정망을 받아 KV 에 저장한다.
  *  - GET /airkorea.json 으로 저장된 JSON 을 제공한다 (CORS 허용, 5분 캐시).
  *  - GET /refresh?token=<REFRESH_TOKEN> 으로 즉시 갱신할 수 있다 (운영 routine 용).
- * 비밀값(wrangler secret): AIRKOREA_KEY, LABCO_API_URL(없으면 랩코 생략), REFRESH_TOKEN.
+ * 비밀값(wrangler secret): AIRKOREA_KEY, LABCO_API_URL(없으면 랩코 생략. Workers 는 IP 직접 접속·비표준 포트가 안 되므로 호스트명 + 80/443 이어야 한다), REFRESH_TOKEN.
  * KV 바인딩: DATA. 키: airkorea(결과), stations(측정소 위치 캐시, 24h).
  * 데이터 규칙은 scripts/fetch-airkorea.mjs 와 같다 (공공누리 제3유형: 값·등급은 API 가 준 그대로).
  */
@@ -58,7 +58,7 @@ async function fetchAirkorea(env) {
   return rows;
 }
 
-async function fetchLabco(env) {
+async function fetchLabco(env, prev) {
   if (!env.LABCO_API_URL) return { rows: [], note: 'LABCO_API_URL 미설정' };
   try {
     const res = await fetch(env.LABCO_API_URL, { signal: AbortSignal.timeout(30000) });
@@ -77,16 +77,10 @@ async function fetchLabco(env) {
     }
     return { rows, note: `${devices.length}대 중 ${rows.length} 표시 (끊김 ${stale}, 값없음 ${empty}, 이상값 ${outlier})` };
   } catch (e) {
-    // Workers 는 비표준 포트(예: 3000)로 접속하지 못한다. 그럴 때는 GitHub Actions 가 올려 둔 수집본에서 랩코 데이터만 가져온다.
-    try {
-      const res = await fetch('https://raw.githubusercontent.com/RyuSanghak/LABCO_cleanroom-note/data/airkorea/airkorea.json', { signal: AbortSignal.timeout(20000), cf: { cacheTtl: 0 } });
-      if (!res.ok) throw new Error(`fallback HTTP ${res.status}`);
-      const d = await res.json();
-      const age = Math.round((Date.now() - new Date(d.updated).getTime()) / 60000);
-      return { rows: d.labco ?? [], note: `직접 접속 실패(${e.message}) → GitHub 수집본 사용 (${age}분 전, ${(d.labco ?? []).length}대)` };
-    } catch (e2) {
-      return { rows: [], note: `랩코 실패: ${e.message}; 대체 경로도 실패: ${e2.message}` };
-    }
+    // 직접 접속 실패(랩코 서버 다운 등) 시에는 이전 수집분을 그대로 유지하고 실패만 기록한다.
+    const prevRows = prev?.labco ?? [];
+    const age = prev?.updated ? Math.round((Date.now() - new Date(prev.updated).getTime()) / 60000) : null;
+    return { rows: prevRows, note: `랩코 실패: ${e.message} → 이전 수집분 유지 (${age ?? '?'}분 전, ${prevRows.length}대)` };
   }
 }
 
@@ -101,7 +95,7 @@ async function refresh(env) {
     await env.DATA.put('airkorea', JSON.stringify(out));
     return out;
   }
-  labco = await fetchLabco(env);
+  labco = await fetchLabco(env, prev);
   const dataTime = airkorea.map((r) => r.t).filter(Boolean).sort().at(-1) ?? null;
   const out = {
     updated: new Date().toISOString(), dataTime,

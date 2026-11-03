@@ -13,7 +13,7 @@ cd worker
 npx wrangler login                                   # 브라우저에서 Cloudflare 승인 (1회)
 npx wrangler kv namespace create DATA                # 출력된 id 를 wrangler.toml 의 KV_NAMESPACE_ID 자리에 넣는다
 npx wrangler secret put AIRKOREA_KEY                 # 에어코리아 인증키 (URL 인코딩된 키 그대로)
-npx wrangler secret put LABCO_API_URL                # 랩코 앱 서버 /api/devices 주소
+npx wrangler secret put LABCO_API_URL                # 랩코 앱 서버 /api/devices 주소 (호스트명 + 80/443 포트. Workers 는 IP 직접 접속·:3000 같은 비표준 포트 불가)
 npx wrangler secret put REFRESH_TOKEN                # 아무 긴 임의 문자열
 npx wrangler deploy
 ```
