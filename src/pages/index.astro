@@ -8,7 +8,7 @@ const posts = (await getCollection('articles', ({ data }) => !data.draft))
   .sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime())
   .slice(0, 6);
 
-const dataUrl = (import.meta.env.PUBLIC_AIRKOREA_DATA_URL as string | undefined) || '/data/airkorea.json';
+const dataUrl = 'https://data.cleanroomnote.com/airkorea.json'; // Cloudflare Worker 가 매시간 갱신
 
 // 계산기 카드: 이름, 한 줄 설명, 아이콘(인라인 SVG 패스)
 const tools = [

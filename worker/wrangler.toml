@@ -10,7 +10,7 @@ crons = ["7 * * * *"]
 
 [[kv_namespaces]]
 binding = "DATA"
-id = "KV_NAMESPACE_ID"
+id = "194c51cb77ff4517a2c59309ad6172e8"
 
 # 같은 계정의 도메인이라 배포 시 DNS 가 자동으로 잡힌다.
 [[routes]]

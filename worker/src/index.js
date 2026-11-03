@@ -77,7 +77,16 @@ async function fetchLabco(env) {
     }
     return { rows, note: `${devices.length}대 중 ${rows.length} 표시 (끊김 ${stale}, 값없음 ${empty}, 이상값 ${outlier})` };
   } catch (e) {
-    return { rows: [], note: `랩코 실패: ${e.message}` };
+    // Workers 는 비표준 포트(예: 3000)로 접속하지 못한다. 그럴 때는 GitHub Actions 가 올려 둔 수집본에서 랩코 데이터만 가져온다.
+    try {
+      const res = await fetch('https://raw.githubusercontent.com/RyuSanghak/LABCO_cleanroom-note/data/airkorea/airkorea.json', { signal: AbortSignal.timeout(20000), cf: { cacheTtl: 0 } });
+      if (!res.ok) throw new Error(`fallback HTTP ${res.status}`);
+      const d = await res.json();
+      const age = Math.round((Date.now() - new Date(d.updated).getTime()) / 60000);
+      return { rows: d.labco ?? [], note: `직접 접속 실패(${e.message}) → GitHub 수집본 사용 (${age}분 전, ${(d.labco ?? []).length}대)` };
+    } catch (e2) {
+      return { rows: [], note: `랩코 실패: ${e.message}; 대체 경로도 실패: ${e2.message}` };
+    }
   }
 }
 

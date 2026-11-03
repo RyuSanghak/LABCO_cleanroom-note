@@ -6,7 +6,7 @@ const title = '전국 미세먼지 지도';
 const description =
   '에어코리아 전국 공식 측정소와 랩코(LABCO) 측정망의 실시간 PM10·PM2.5 농도를 한 지도에서 확인합니다. 시도별 보기, 측정소 검색, 등급별 요약.';
 // 데이터 파일 주소. 배포에서는 GitHub Actions 가 매시간 갱신하는 data 브랜치 주소를 환경 변수로 넣는다.
-const dataUrl = (import.meta.env.PUBLIC_AIRKOREA_DATA_URL as string | undefined) || '/data/airkorea.json';
+const dataUrl = 'https://data.cleanroomnote.com/airkorea.json'; // Cloudflare Worker 가 매시간 갱신
 ---
 
 <Base title={title} description={description}>

@@ -73,8 +73,9 @@ Node 22 이상. 로컬 Node 가 22.13 이라 Astro 5 계열에 고정했다(Astr
   - **공식 측정소**: 한국환경공단 에어코리아 공공 API (공공누리 제3유형: 출처 표시, 변경 금지). 값·등급은 API 가 준 그대로.
   - **랩코 측정망**: 서비스 중인 앱 서버의 `/api/devices` (장비별 최신 PM10·PM2.5). 주소는 `.env`/Secrets 의 `LABCO_API_URL`. 품질 기준: 3시간 이상 끊김·값 0·비현실적 값(PM10>1000, PM2.5>500, PM2.5>PM10×1.5)은 제외, 등급은 에어코리아 1시간 등급과 같은 구간으로 계산, 시도명은 에어코리아 표기(전남광주 등)로 통일.
 - 수집: `node scripts/fetch-airkorea.mjs` → `public/data/airkorea.json` (+ 측정소 위치 캐시 `stations.json`, 하루 1회 갱신). 키는 `.env` 의 `AIRKOREA_KEY`.
-- 운영: `.github/workflows/airkorea.yml` 이 **매시간** 수집해 `data` 브랜치 `airkorea/airkorea.json` 에 커밋한다. main 에 커밋하지 않으므로 Cloudflare 빌드가 돌지 않는다.
-  저장소 Secrets 에 `AIRKOREA_KEY`, Cloudflare 환경 변수에 `PUBLIC_AIRKOREA_DATA_URL=https://raw.githubusercontent.com/RyuSanghak/LABCO_cleanroom-note/data/airkorea/airkorea.json` 을 넣는다.
+- 운영(주): **Cloudflare Worker** `worker/` 가 매시간 7분 Cron 으로 수집해 KV 에 저장하고 `https://data.cleanroomnote.com/airkorea.json` 으로 제공한다. 사이트는 이 주소를 코드에 고정해 읽는다. 상태는 `/health`, 즉시 갱신은 `/refresh?token=…`. 배포·비밀값은 `worker/README.md`.
+  Worker 는 비표준 포트(랩코 서버 :3000)로 접속하지 못하므로 랩코 데이터는 직접 접속 실패 시 아래 GitHub 수집본에서 가져온다. 랩코 서버가 8080 포트도 열면 직접 접속으로 바뀐다.
+- 운영(보조): `.github/workflows/airkorea.yml` 이 매시간 `data` 브랜치 `airkorea/airkorea.json` 에 커밋한다(랩코 데이터의 대체 경로). GitHub 예약 실행이 늦게 켜지는 동안은 claude.ai routine 이 매시간 대신 실행시킨다.
 - 지도: Leaflet(cdnjs) + OpenStreetMap. PM2.5/PM10 전환, 시도 선택(해당 지역으로 이동), 측정소 검색, 등급별 요약, 줌 11 이상에서 값 표시, 공식/랩코 레이어 켜고 끄기.
 - API 호출량: 시간당 1회 + 측정소 목록 하루 1회 ≈ 하루 25회 (개발계정 한도 500회). 사이트 공개 후 운영계정 신청 권장.
 
